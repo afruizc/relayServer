@@ -14,7 +14,7 @@ type DataSynchronizer interface {
 
 type DataSynchronizerImpl struct {}
 
-func NewDataSynchronizer() (*DataSynchronizerImpl) {
+func NewDataSynchronizer() (DataSynchronizer) {
 	return &DataSynchronizerImpl{}
 }
 
