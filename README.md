@@ -4,8 +4,8 @@ Suppose you have two programs that can talk to a relay computer via TCP, but
 can not reach each other (because of NAT or firewall issues). What do you do?
 You come to this wonderful repo and use our wonderful RelayServer!
 
-Our relayServer accepts relayRequests from servers that want all their
-traffic router through us. To use the relay server do:
+Our relayServer accepts requests from servers that want all their
+traffic sent through it. To use the relay server:
 
     ./relayServer <port>
     ./serverPorgram <relayHost> <relayPort>
@@ -40,13 +40,12 @@ tcp servers.
    written on any one end is also passed to the other.
 
 As mentioned above, when a `client` connects to the `relayServer`, we notify the
-`server` by sending a string. This string is delimited by the `'\n'` character,
-and contains the host and port of the `relayServer`. `server`s using `relayServer`
-read this message from the connection stream established when they first connected 
-to the `relayServer`.
+`server` by sending a string. This string contains the port and is ended with the
+`'\n'` character. `server`s using `relayServer` read this message from the
+connection stream established when they first connected to the `relayServer`.
 
 ## Connecting your server
-As we want don't want our `relayServer` to initiate any connections, but to receive
+As we don't want our `relayServer` to initiate any connections, but to receive
 them, we start sockets and wait for all interested parties to connect to us instead
 of trying to connect to them.
 
@@ -66,7 +65,7 @@ and one to the `server`. Then synchronize these 2 connections.
 We have come up with 2 examples of a simple echo server and a simple web server
 that use this method:
 
-[echoServer.go](https://gist.github.com/anonymous/a31dadee64238118229eb3ff13f1a340)
+[echoServer.go](examples/echoserver.go)
 
-[webServer.go](https://gist.github.com/anonymous/511f9943eab6d3bcdd75a3629e51486e)
+[webServer.go](examples/webserver.go)
 

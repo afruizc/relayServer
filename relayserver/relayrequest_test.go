@@ -5,6 +5,7 @@ import (
 	"net"
 	"fmt"
 	"bufio"
+	"time"
 )
 
 type mockSync struct {
@@ -41,10 +42,12 @@ func TestRelayRequestHandler_RunWithClients_Success(t *testing.T) {
 	reader := bufio.NewReader(s[0])
 	msg, err := reader.ReadString('\n')
 
-	expectedMsg := fmt.Sprintf("[NEW]localhost:%d\n", rr.GetServerPort())
+	expectedMsg := fmt.Sprintf("[NEW]%d\n", rr.GetServerPort())
 	if msg != expectedMsg {
 		t.Errorf("Expected %s got %s from relayServer", expectedMsg, msg)
 	}
+
+	time.Sleep(time.Millisecond)
 
 	if !ds.syncCalled {
 		t.Errorf("Sync method wasn't called")
