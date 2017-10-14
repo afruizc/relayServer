@@ -3,6 +3,7 @@ package relayserver
 import (
 	"net"
 	"io"
+	"log"
 )
 
 type DataSynchronizer interface {
@@ -19,20 +20,17 @@ func NewDataSynchronizer() (DataSynchronizer) {
 }
 
 func (df *DataSynchronizerImpl) SynchronizeIO(conn1, conn2 net.Conn) {
-	go func() {
-		_, err := io.Copy(conn2, conn1)
+	go sync(conn1, conn2)
+	go sync(conn2, conn1)
+}
 
-		if err != nil {
-			panic(err)
-		}
-	}()
+func sync(conn1, conn2 net.Conn) {
+	defer conn1.Close()
+	defer conn2.Close()
+	_, err := io.Copy(conn1, conn2)
 
-	go func() {
-		_, err := io.Copy(conn1, conn2)
-
-		if err != nil {
-			panic(err)
-		}
-	}()
+	if err != nil {
+		log.Println("Connection closed")
+	}
 }
 
