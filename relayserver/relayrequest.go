@@ -79,12 +79,12 @@ func notifyServer(conn net.Conn, port int) error {
 }
 
 func startServers() (net.Listener, net.Listener, error) {
-	clientL, err := net.Listen("tcp", "localhost:0")
+	clientL, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	serverL, err := net.Listen("tcp", "localhost:0")
+	serverL, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return nil, nil, err
 	}

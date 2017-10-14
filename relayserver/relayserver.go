@@ -17,7 +17,7 @@ type ServerImpl struct {
 }
 
 func NewServer(port int, ds DataSynchronizer) (Server, error) {
-	laddr := fmt.Sprintf("localhost:%d", port)
+	laddr := fmt.Sprintf(":%d", port)
 	server, err := net.Listen("tcp", laddr)
 
 	if err != nil {
@@ -49,4 +49,4 @@ func (s *ServerImpl) startRelay(conn net.Conn) {
 	relayRequest.Run()
 }
 
-// TODO tests this better
+// TODO tests this
