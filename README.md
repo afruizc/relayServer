@@ -30,6 +30,7 @@ The final step is to create a connection to the server itself and synchronize th
 connection with the one receiving the data from the relayServer. You can see two
 examples of servers that use this method:
 
-(echoServer.go)[https://gist.github.com/anonymous/a31dadee64238118229eb3ff13f1a340]
-(webServer.go)[https://gist.github.com/anonymous/511f9943eab6d3bcdd75a3629e51486e]
+[echoServer.go](https://gist.github.com/anonymous/a31dadee64238118229eb3ff13f1a340)
+
+[webServer.go](https://gist.github.com/anonymous/511f9943eab6d3bcdd75a3629e51486e)
 
