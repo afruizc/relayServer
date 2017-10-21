@@ -13,10 +13,9 @@ type Server interface {
 type ServerImpl struct {
 	server     net.Listener
 	newClients chan net.Conn
-	ds         DataSynchronizer
 }
 
-func NewServer(port int, ds DataSynchronizer) (Server, error) {
+func NewServer(port int) (Server, error) {
 	laddr := fmt.Sprintf(":%d", port)
 	server, err := net.Listen("tcp", laddr)
 
@@ -24,7 +23,7 @@ func NewServer(port int, ds DataSynchronizer) (Server, error) {
 		return nil, err
 	}
 
-	return &ServerImpl{server, make(chan net.Conn), ds}, nil
+	return &ServerImpl{server, make(chan net.Conn)}, nil
 }
 
 func (s *ServerImpl) Listen() {
@@ -40,7 +39,7 @@ func (s *ServerImpl) Listen() {
 }
 
 func (s *ServerImpl) startRelay(conn net.Conn) {
-	relayRequest, err := NewRelayRequest(conn, s.ds)
+	relayRequest, err := NewRelayRequest(conn, NewDataSynchronizer())
 	log.Printf("Serving relay requests on port %d", relayRequest.GetClientPort())
 	if err != nil {
 		panic(err)

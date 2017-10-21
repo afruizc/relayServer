@@ -40,9 +40,9 @@ tcp servers.
    written on any one end is also passed to the other.
 
 As mentioned above, when a `client` connects to the `relayServer`, we notify the
-`server` by sending a string. This string contains the port and is ended with the
-`'\n'` character. `server`s using `relayServer` read this message from the
-connection stream established when they first connected to the `relayServer`.
+`server` by sending a string. This string contains has the prefix `[NEW]` followed
+ by the the port and is ended with the `\n` character. `server`s using
+ `relayServer` read this message from the connection stream established when they first connected to the `relayServer`.
 
 ## Connecting your server
 As we don't want our `relayServer` to initiate any connections, but to receive

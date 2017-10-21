@@ -1,18 +1,16 @@
 package main
 
 import (
-	"github.com/afruizc/relayServer/relayserver"
 	"fmt"
 	"flag"
+	"gitlab.com/afruizc/relayServer/relayserver"
 )
 
 func main() {
 	port := flag.Int("port", 8080, "port to bind to")
 	flag.Parse()
 
-	ds := relayserver.NewDataSynchronizer()
-
-	relayServer, err := relayserver.NewServer(*port, ds)
+	relayServer, err := relayserver.NewServer(*port)
 	if err != nil {
 		println(err)
 	}

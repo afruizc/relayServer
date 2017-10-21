@@ -3,7 +3,6 @@ package relayserver
 import (
 	"net"
 	"fmt"
-	"testing"
 )
 
 // Starts a server and connects clientNo clients to the
@@ -43,12 +42,17 @@ func startServer(serverAddr string) net.Listener {
 	return server
 }
 
-func ReadString(conn net.Conn, t *testing.T) string {
+func GetByteCount(conn net.Conn) (int, error) {
 	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
-		t.Error(err)
+	readSoFar := 0
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			return readSoFar, err
+		}
+
+		readSoFar += n
 	}
 
-	return string(buf[:n])
+	return readSoFar, nil
 }

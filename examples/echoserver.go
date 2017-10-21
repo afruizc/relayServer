@@ -8,6 +8,7 @@ import (
 	"strings"
 	"io"
 	"log"
+	"time"
 )
 
 var addr string
@@ -43,12 +44,13 @@ func main() {
 	relayConn := connectToRelay(relayServerAddr)
 
 	for {
-		waitForClient(relayConn, *relayHost)
+		processConnection(relayConn, *relayHost)
 	}
 
 }
 
 func handleConnection(conn net.Conn) {
+	defer conn.Close()
 	clientReader := bufio.NewReader(conn)
 
 	for {
@@ -71,14 +73,13 @@ func connectToRelay(relayServerAddr string) net.Conn {
 	return relayConn
 }
 
-func waitForClient(conn net.Conn, relayHost string) {
+func processConnection(conn net.Conn, relayHost string) {
 	bufReader := bufio.NewReader(conn)
 	msg, err := bufReader.ReadString('\n')
 
 	if err != nil {
 		fmt.Println(err)
 	}
-
 
 	laddr := strings.TrimSpace(getAddress(msg, relayHost))
 
@@ -92,12 +93,17 @@ func waitForClient(conn net.Conn, relayHost string) {
 		panic(err)
 	}
 
-	syncConns(connToRelay, connToServer)
+	go syncConns(connToRelay, connToServer)
 }
 
 func syncConns(conn1 net.Conn, conn2 net.Conn) {
 	go io.Copy(conn1, conn2)
-	go io.Copy(conn2, conn1)
+	io.Copy(conn2, conn1)
+
+	time.Sleep(time.Second)
+
+	conn1.Close()
+	conn2.Close()
 }
 
 func getAddress(s string, host string) string {
