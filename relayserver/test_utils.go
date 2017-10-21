@@ -8,7 +8,7 @@ import (
 // Starts a server and connects clientNo clients to the
 // server. It returns all endpoints for the established
 // connections
-func StartServerConnectClients(clientNo int) ([]net.Conn, []net.Conn) {
+func StartServerConnectClients(clientNo int) (net.Listener, []net.Conn, []net.Conn) {
 	const serverAddr = "localhost:9001"
 	clientEndpoints := make([]net.Conn, 0)
 	serverEndpoints := make([]net.Conn, 0)
@@ -30,7 +30,7 @@ func StartServerConnectClients(clientNo int) ([]net.Conn, []net.Conn) {
 		serverEndpoints = append(serverEndpoints, <-serverEndpointsChannel)
 	}
 
-	return serverEndpoints, clientEndpoints
+	return server, serverEndpoints, clientEndpoints
 }
 
 func startServer(serverAddr string) net.Listener {

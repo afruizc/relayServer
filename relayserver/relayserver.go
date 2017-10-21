@@ -29,21 +29,21 @@ func NewServer(port int) (Server, error) {
 func (s *ServerImpl) Listen() {
 	for {
 		client, err := s.server.Accept()
-		log.Printf("Client request to relay: %s\n", client)
 		if err != nil {
 			panic(err)
 		}
+		log.Printf("Client request to relay: %s\n", client)
 
-		go s.startRelay(client)
+		go startRelay(client)
 	}
 }
 
-func (s *ServerImpl) startRelay(conn net.Conn) {
-	relayRequest, err := NewRelayRequest(conn, NewDataSynchronizer())
-	log.Printf("Serving relay requests on port %d", relayRequest.GetClientPort())
+func startRelay(conn net.Conn) {
+	relayRequest, err := NewRelayRequest(conn)
 	if err != nil {
 		panic(err)
 	}
+	log.Printf("Serving relay requests on port %d", relayRequest.GetClientPort())
 
 	relayRequest.Run()
 }

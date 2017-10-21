@@ -9,15 +9,17 @@ import (
 
 func TestSynchronizeIO_SendOneHalt_Success(t *testing.T) {
 	// Arrange
-	const bytesToSend = 1024 * 128
+	const bytesToSend = 1
 	client0Sent := genBytes(bytesToSend)
-	s, c := StartServerConnectClients(2)
+	serv, s, c := StartServerConnectClients(2)
 
 	// Act
 	// By synchronizing c0 and c1 we should be able to
 	// read on s1 everything that is written to s0 and vice versa
-	forwarder := NewDataSynchronizer()
-	forwarder.SynchronizeIO(s[0], s[1])
+	go func() {
+		forwarder := NewClientServerSynchronizer(nil, 0)
+		forwarder.SynchronizeIO(s[0], s[1])
+	}()
 
 	c[0].Write(client0Sent)
 	c[0].Close()
@@ -26,6 +28,7 @@ func TestSynchronizeIO_SendOneHalt_Success(t *testing.T) {
 	// Assert
 	assertConnReceived(c[1], bytesToSend, t)
 	c[1].Close()
+	serv.Close()
 }
 
 func TestSynchronizeIO_SendAndReceive_Success(t *testing.T) {
@@ -34,13 +37,15 @@ func TestSynchronizeIO_SendAndReceive_Success(t *testing.T) {
 	const sentBytesFrom1 = 1024
 	client0Sent := genBytes(sentBytesFrom0)
 	client1Sent := genBytes(sentBytesFrom1)
-	s, c := StartServerConnectClients(2)
+	serv, s, c := StartServerConnectClients(2)
 
 	// Act
 	// By synchronizing c0 and c1 we should be able to
 	// read on s1 everything that is written to s0 and vice versa
-	forwarder := NewDataSynchronizer()
-	forwarder.SynchronizeIO(s[0], s[1])
+	go func() {
+		forwarder := NewClientServerSynchronizer(nil, 0)
+		forwarder.SynchronizeIO(s[0], s[1])
+	}()
 
 	c[0].Write(client0Sent)
 	c[0].Close()
@@ -49,6 +54,7 @@ func TestSynchronizeIO_SendAndReceive_Success(t *testing.T) {
 	// Assert
 	assertConnReceived(c[1], sentBytesFrom0, t)
 	c[1].Close()
+	serv.Close()
 }
 
 func assertConnReceived(conn net.Conn, expectedCount int, t *testing.T) {

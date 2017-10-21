@@ -4,43 +4,50 @@ import (
 	"net"
 	"io"
 	"log"
-	"time"
+	"sync"
 )
 
-type DataSynchronizer interface {
+type ClientServerSynchronizer interface {
 	// Forwards all IO between conn1 and conn2
 	// That is, everything that is read from conn1 is written to conn2
 	// and vice versa
 	SynchronizeIO(clientConn, serverConn net.Conn)
 }
 
-type DataSynchronizerImpl struct {
-	clientServerCopy chan bool
-	serverClientCopy chan bool
+// These channels are used as flags for when
+// a connection has read and is currently not
+// done writing data. We dubbed them as `pending`
+type ClientServerSyncImpl struct {
+	c  net.Conn // Original connection to the server. Used for notifications
+	id int      // ID of the client
 }
 
-func NewDataSynchronizer() (DataSynchronizer) {
-	return &DataSynchronizerImpl{
-		make(chan bool),
-		make(chan bool)}
+func NewClientServerSynchronizer(serverConn net.Conn, id int) (ClientServerSynchronizer) {
+	return &ClientServerSyncImpl{serverConn, id}
 }
 
-func (df *DataSynchronizerImpl) SynchronizeIO(clientConn, serverConn net.Conn) {
-	go sync(clientConn, serverConn) // Copy from the client
-	go sync(serverConn, clientConn) // Copy from the server
+func (df *ClientServerSyncImpl) SynchronizeIO(clientConn, serverConn net.Conn) {
+	df.sync(clientConn, serverConn)
 }
 
-func sync(conn1, conn2 net.Conn) {
-	defer func() {
-		conn1.Close()
-		conn2.Close()
+func (df *ClientServerSyncImpl) sync(client, server net.Conn) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(server, client)
+		notifyClosedConnection(df.c, df.id)
+		log.Println("Client disconnected", err)
 	}()
-	n, err := io.Copy(conn1, conn2)
-	if err == nil {
-		// Client/Server disconnected successfully after writing
-		// give 1 sec so all IO finishes.
-		time.Sleep(time.Second)
-	}
-	log.Println("Connection closed.", "err:", err, "n:", n)
-}
 
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(client, server)
+		log.Println("server disconnected", err)
+	}()
+
+	wg.Wait()
+	server.Close()
+	client.Close()
+}

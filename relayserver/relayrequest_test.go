@@ -8,23 +8,10 @@ import (
 	"time"
 )
 
-type mockSync struct {
-	syncCalled bool
-}
-
-func NewMockSync() (*mockSync) {
-	return &mockSync{false}
-}
-
-func (s *mockSync) SynchronizeIO(conn1, conn2 net.Conn) {
-	s.syncCalled = true
-}
-
 func TestRelayRequestHandler_RunWithClients_Success(t *testing.T) {
 	// Arrange
-	ds := NewMockSync()
-	c, s := StartServerConnectClients(1)
-	rr, err := NewRelayRequest(c[0], ds)
+	serv, c, s := StartServerConnectClients(1)
+	rr, err := NewRelayRequest(c[0])
 
 	if err != nil {
 		t.Error(err)
@@ -42,16 +29,14 @@ func TestRelayRequestHandler_RunWithClients_Success(t *testing.T) {
 	reader := bufio.NewReader(s[0])
 	msg, err := reader.ReadString('\n')
 
-	expectedMsg := fmt.Sprintf("[NEW]%d\n", rr.GetServerPort())
+	expectedMsg := fmt.Sprintf("[NEW]%d:%d\n", rr.GetServerPort(), 1)
 	if msg != expectedMsg {
 		t.Errorf("Expected %s got %s from relayServer", expectedMsg, msg)
 	}
 
 	time.Sleep(time.Millisecond)
 
-	if !ds.syncCalled {
-		t.Errorf("Sync method wasn't called")
-	}
+	serv.Close()
 }
 
 func connectClient(addr string, t *testing.T) {

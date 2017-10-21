@@ -27,6 +27,6 @@ func main2() {
 	relayConn := connectToRelay(relayServerAddr)
 
 	for {
-		processConnection(relayConn, *relayHost)
+		processMessages(relayConn, *relayHost)
 	}
 }

@@ -13,6 +13,11 @@ import (
 
 var addr string
 
+type relayClient struct {
+	relay net.Conn
+	server net.Conn
+}
+
 func main() {
 	relayHost := flag.String("host", "localhost", "Relay server host")
 	relayPort := flag.Int("port", 8080, "Relay server port")
@@ -30,7 +35,6 @@ func main() {
 		for {
 			c, err := server.Accept()
 			if err != nil {
-				fmt.Println("Damn")
 				panic(err)
 			}
 
@@ -42,24 +46,29 @@ func main() {
 
 	relayServerAddr := fmt.Sprintf("%s:%d", *relayHost, *relayPort)
 	relayConn := connectToRelay(relayServerAddr)
+	clients := make(map[int]*relayClient)
 
 	for {
-		processConnection(relayConn, *relayHost)
+		processMessages(relayConn, *relayHost, clients)
 	}
-
 }
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
-	clientReader := bufio.NewReader(conn)
 
+	buf := make([]byte, 1024*32)
 	for {
-		rawBytes, err := clientReader.ReadBytes('\n')
-		log.Printf("Client sent: % X \n", rawBytes)
+		nb, err := conn.Read(buf)
 		if err != nil {
+			log.Println("ERROR:", err)
 			break
 		}
-		conn.Write(rawBytes)
+		_, err = conn.Write(buf[:nb])
+		if err != nil {
+			log.Println("ERROR:", err)
+			break
+		}
+		log.Printf("Client sent: % X \n", string(buf[:nb]))
 	}
 }
 
@@ -73,17 +82,32 @@ func connectToRelay(relayServerAddr string) net.Conn {
 	return relayConn
 }
 
-func processConnection(conn net.Conn, relayHost string) {
+func processMessages(conn net.Conn, relayHost string, clients map[int]*relayClient) {
 	bufReader := bufio.NewReader(conn)
 	msg, err := bufReader.ReadString('\n')
-
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	laddr := strings.TrimSpace(getAddress(msg, relayHost))
+	msg = strings.TrimSpace(msg)
 
-	connToRelay, err := net.Dial("tcp", laddr)
+	switch {
+	case strings.HasPrefix(msg, "[NEW]"):
+		id, port := getIdAndPort(msg)
+		rlAddr := fmt.Sprintf("%s:%d", relayHost, port)
+		client := newClient(rlAddr)
+		clients[id] = client
+		go client.sync()
+	case strings.HasPrefix(msg, "[CLOSE]"):
+		time.Sleep(time.Millisecond)
+		id := getId(msg)
+		clients[id].close()
+	}
+}
+
+
+func newClient(rlAddr string) (*relayClient) {
+	connToRelay, err := net.Dial("tcp", rlAddr)
 	if err != nil {
 		panic(err)
 	}
@@ -93,24 +117,32 @@ func processConnection(conn net.Conn, relayHost string) {
 		panic(err)
 	}
 
-	go syncConns(connToRelay, connToServer)
+	return &relayClient{connToRelay, connToServer}
 }
 
-func syncConns(conn1 net.Conn, conn2 net.Conn) {
-	go io.Copy(conn1, conn2)
-	io.Copy(conn2, conn1)
+func (c *relayClient) sync() {
+	go func() {
+		io.Copy(c.server, c.relay)
+	}()
 
-	time.Sleep(time.Second)
-
-	conn1.Close()
-	conn2.Close()
+	io.Copy(c.relay, c.server)
 }
 
-func getAddress(s string, host string) string {
-	var port int
+func (c *relayClient) close() {
+	c.relay.Close()
+	c.server.Close()
+}
+
+func getId(s string) (id int) {
+	opCode := "[CLOSE]"
+	idx := strings.Index(s, opCode) + len(opCode)
+	fmt.Sscanf(s[idx:], "%d", &id)
+	return
+}
+
+func getIdAndPort(s string) (id, port int) {
 	opCode := "[NEW]"
 	idx := strings.Index(s, opCode) + len(opCode)
-	fmt.Sscanf(s[idx:], "%d", &port)
-
-	return fmt.Sprintf("%s:%d", host, port)
+	fmt.Sscanf(s[idx:], "%d:%d", &port, &id)
+	return
 }
