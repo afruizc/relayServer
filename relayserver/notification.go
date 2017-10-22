@@ -1,8 +1,8 @@
 package relayserver
 
 import (
-	"net"
 	"fmt"
+	"io"
 )
 
 // New client connection.
@@ -14,22 +14,19 @@ const newClientMsgFmt = "[NEW]%d:%d\n"
 // int represents id of the client
 const closedConnMsgFmt = "[CLOSE]%d\n"
 
-func notifyNewClient(conn net.Conn, port, id int) error {
+func notifyNewClient(socket io.Writer, port, id int) error {
 	s := fmt.Sprintf(newClientMsgFmt, port, id)
-	return writeTo(conn, []byte(s))
+	return writeTo(socket, []byte(s))
 }
 
-func notifyClosedConnection(conn net.Conn, id int) error {
-	if conn == nil {
-		return nil
-	}
+func notifyClosedConnection(socket io.Writer, id int) error {
 	s := fmt.Sprintf(closedConnMsgFmt, id)
-	return writeTo(conn, []byte(s))
+	return writeTo(socket, []byte(s))
 }
 
 // Write the given slice to the server
-func writeTo(conn net.Conn, buf []byte) error {
-	_, err := conn.Write(buf)
+func writeTo(socket io.Writer, buf []byte) error {
+	_, err := socket.Write(buf)
 
 	if err != nil {
 		return err

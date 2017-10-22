@@ -56,6 +56,10 @@ func (rr *RelayRequest) Run() {
 		ds := NewClientServerSynchronizer(rr.c, rr.clientId)
 
 		go func() {
+			defer func() {
+				clientConn.Close()
+				serverConn.Close()
+			}()
 			ds.SynchronizeIO(clientConn, serverConn)
 		}()
 	}

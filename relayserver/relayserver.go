@@ -39,6 +39,7 @@ func (s *ServerImpl) Listen() {
 }
 
 func startRelay(conn net.Conn) {
+	defer conn.Close()
 	relayRequest, err := NewRelayRequest(conn)
 	if err != nil {
 		panic(err)
