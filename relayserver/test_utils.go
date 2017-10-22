@@ -9,24 +9,28 @@ import (
 // Starts a server and connects clientNo clients to the
 // server. It returns all endpoints for the established
 // connections
-func StartServerConnectClients(clientNo int) (net.Listener, []net.Conn, []net.Conn) {
+func StartServerConnectClients(clientNo int) (*net.TCPListener, []*net.TCPConn, []*net.TCPConn) {
 	const serverAddr = "localhost:9001"
-	clientEndpoints := make([]net.Conn, 0)
-	serverEndpoints := make([]net.Conn, 0)
+	clientEndpoints := make([]*net.TCPConn, 0)
+	serverEndpoints := make([]*net.TCPConn, 0)
 
-	server := startServer(serverAddr)
+	addr, err := net.ResolveTCPAddr("tcp", serverAddr)
+	if err != nil {
+		fmt.Println("Error parsing tcp address", addr)
+	}
 
-	serverEndpointsChannel := make(chan net.Conn)
+	server := startServer(addr)
+	serverEndpointsChannel := make(chan *net.TCPConn)
 	go func() {
 		for i := 0; i < clientNo; i++ {
-			c, _ := server.Accept()
+			c, _ := server.AcceptTCP()
 			fmt.Println("Client connected", )
 			serverEndpointsChannel <- c
 		}
 	}()
 
 	for i := 0; i < clientNo; i++ {
-		c, _ := net.Dial("tcp", serverAddr)
+		c, _ := net.DialTCP("tcp", nil, addr)
 		clientEndpoints = append(clientEndpoints, c)
 		serverEndpoints = append(serverEndpoints, <-serverEndpointsChannel)
 	}
@@ -34,8 +38,9 @@ func StartServerConnectClients(clientNo int) (net.Listener, []net.Conn, []net.Co
 	return server, serverEndpoints, clientEndpoints
 }
 
-func startServer(serverAddr string) net.Listener {
-	server, err := net.Listen("tcp", serverAddr)
+func startServer(addr *net.TCPAddr) *net.TCPListener {
+
+	server, err := net.ListenTCP("tcp", addr)
 	if err != nil {
 		fmt.Println("ERROR:", err)
 	}

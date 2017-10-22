@@ -2,9 +2,9 @@ package relayserver
 
 import (
 	"net"
+	"sync"
+	"log"
 )
-
-
 
 // When a client connects to the relay server, we send a
 // string of bytes to the server notifying them that a new
@@ -14,21 +14,26 @@ import (
 // This means, we need 2 listeners per request:	one for requests
 // from clients and one for requests from the server.
 type RelayRequestHandler interface {
-	Run()
+	// Accepts clients, notifies the server and accepts a client
+	// from the server.
+	AcceptClients()
+
+	// Return client port
 	GetClientPort() int
+
+	// Return server port
 	GetServerPort() int
 }
 
-
 type RelayRequest struct {
-	clientL                net.Listener // Listener for clients
-	serverL                net.Listener // Listener for servers
-	c                      net.Conn     // Connection from the server
+	clientL                *net.TCPListener // Listener for clients
+	serverL                *net.TCPListener // Listener for servers
+	c                      *net.TCPConn     // Connection from the server
 	clientPort, serverPort int
 	clientId               int // Incremental ID for clients
 }
 
-func NewRelayRequest(client net.Conn) (RelayRequestHandler, error) {
+func NewRelayRequest(client *net.TCPConn) (RelayRequestHandler, error) {
 	cl, sl, err := startServers()
 	if err != nil {
 		return nil, err
@@ -37,32 +42,37 @@ func NewRelayRequest(client net.Conn) (RelayRequestHandler, error) {
 	cPort := getPort(cl.Addr())
 	sPort := getPort(sl.Addr())
 
-	return &RelayRequest{cl, sl, client, cPort, sPort, 0},nil
+	return &RelayRequest{cl, sl, client, cPort, sPort, 0}, nil
 }
 
-func (rr *RelayRequest) Run() {
+func (rr *RelayRequest) AcceptClients() {
+	var wg sync.WaitGroup
+
 	for {
 		rr.clientId++
-		clientConn, err := rr.clientL.Accept()
+		clientSocket, err := rr.clientL.AcceptTCP()
 		if err != nil {
 			panic(err)
 		}
+
+		log.Println("Client connected:", clientSocket.RemoteAddr().String())
 
 		notifyNewClient(rr.c, rr.serverPort, rr.clientId)
-		serverConn, err := rr.serverL.Accept()
+		serverSocket, err := rr.serverL.AcceptTCP()
 		if err != nil {
 			panic(err)
 		}
-		ds := NewClientServerSynchronizer(rr.c, rr.clientId)
+		log.Println("Server connected:", clientSocket.RemoteAddr().String())
 
-		go func() {
-			defer func() {
-				clientConn.Close()
-				serverConn.Close()
-			}()
-			ds.SynchronizeIO(clientConn, serverConn)
-		}()
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			ds := NewClientServerSynchronizer(rr.c, id)
+			ds.SynchronizeIO(clientSocket, serverSocket)
+		}(rr.clientId)
 	}
+
+	wg.Wait()
 }
 
 func (rr *RelayRequest) GetClientPort() int {
@@ -73,8 +83,7 @@ func (rr *RelayRequest) GetServerPort() int {
 	return rr.serverPort
 }
 
-
-func startServers() (net.Listener, net.Listener, error) {
+func startServers() (*net.TCPListener, *net.TCPListener, error) {
 	clientL, err := net.Listen("tcp", "0.0.0.0:0")
 	if err != nil {
 		return nil, nil, err
@@ -85,7 +94,7 @@ func startServers() (net.Listener, net.Listener, error) {
 		return nil, nil, err
 	}
 
-	return clientL, serverL, nil
+	return clientL.(*net.TCPListener), serverL.(*net.TCPListener), nil
 }
 
 func getPort(addr net.Addr) int {

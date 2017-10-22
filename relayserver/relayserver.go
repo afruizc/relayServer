@@ -4,6 +4,7 @@ import (
 	"net"
 	"fmt"
 	"log"
+	"sync"
 )
 
 type Server interface {
@@ -11,13 +12,16 @@ type Server interface {
 }
 
 type ServerImpl struct {
-	server     net.Listener
+	server     *net.TCPListener
 	newClients chan net.Conn
 }
 
 func NewServer(port int) (Server, error) {
-	laddr := fmt.Sprintf(":%d", port)
-	server, err := net.Listen("tcp", laddr)
+	laddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return nil, err
+	}
+	server, err := net.ListenTCP("tcp", laddr)
 
 	if err != nil {
 		return nil, err
@@ -27,18 +31,25 @@ func NewServer(port int) (Server, error) {
 }
 
 func (s *ServerImpl) Listen() {
+	var wg sync.WaitGroup
+
 	for {
-		client, err := s.server.Accept()
+		client, err := s.server.AcceptTCP()
 		if err != nil {
 			panic(err)
 		}
-		log.Printf("Client request to relay: %s\n", client)
 
-		go startRelay(client)
+		log.Println("Request to relay from:", client.RemoteAddr())
+
+		wg.Add(1)
+		go startRelay(client, &wg)
 	}
+
+	wg.Wait()
 }
 
-func startRelay(conn net.Conn) {
+func startRelay(conn *net.TCPConn, wg *sync.WaitGroup) {
+	defer wg.Done()
 	defer conn.Close()
 	relayRequest, err := NewRelayRequest(conn)
 	if err != nil {
@@ -46,7 +57,7 @@ func startRelay(conn net.Conn) {
 	}
 	log.Printf("Serving relay requests on port %d", relayRequest.GetClientPort())
 
-	relayRequest.Run()
+	relayRequest.AcceptClients()
 }
 
 // TODO tests this

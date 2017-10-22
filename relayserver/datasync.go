@@ -9,8 +9,8 @@ import (
 
 type ClientServerSynchronizer interface {
 	// Forwards all IO between conn1 and conn2
-	// Blocks until both connections have been finished
-	SynchronizeIO(clientConn, serverConn net.Conn)
+	// Blocks until both connections have been closed
+	SynchronizeIO(clientConn, serverConn *net.TCPConn)
 }
 
 // These channels are used as flags for when
@@ -25,14 +25,14 @@ func NewClientServerSynchronizer(serverConn io.Writer, id int) (ClientServerSync
 	return &ClientServerSyncImpl{serverConn, id}
 }
 
-func (df *ClientServerSyncImpl) SynchronizeIO(clientConn, serverConn net.Conn) {
+func (df *ClientServerSyncImpl) SynchronizeIO(clientConn, serverConn *net.TCPConn) {
 	df.sync(clientConn, serverConn)
 }
 
 // Signals the server that a client has disconnected
 // expects both client and server to end the connections
 // themselves
-func (df *ClientServerSyncImpl) sync(client, server net.Conn) {
+func (df *ClientServerSyncImpl) sync(client, server *net.TCPConn) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -41,12 +41,14 @@ func (df *ClientServerSyncImpl) sync(client, server net.Conn) {
 		_, err := io.Copy(server, client)
 		notifyClosedConnection(df.c, df.id)
 		log.Println("Client disconnected", err)
+		client.Close()
 	}()
 
 	go func() {
 		defer wg.Done()
 		_, err := io.Copy(client, server)
 		log.Println("server disconnected", err)
+		server.Close()
 	}()
 
 	wg.Wait()

@@ -4,145 +4,102 @@ import (
 	"net"
 	"flag"
 	"fmt"
-	"bufio"
-	"strings"
-	"io"
 	"log"
-	"time"
+	"os"
+	"sync"
+	"gitlab.com/afruizc/relayServer/clientutils"
 )
 
-var addr string
-
-type relayClient struct {
-	relay net.Conn
-	server net.Conn
-}
-
 func main() {
+	var wg sync.WaitGroup
 	relayHost := flag.String("host", "localhost", "Relay server host")
 	relayPort := flag.Int("port", 8080, "Relay server port")
+
 	flag.Parse()
 
-	server, err := net.Listen("tcp", "localhost:0")
+	laddr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
-		fmt.Println(server)
+		plnError("Error resolving address", err)
 	}
 
-	port := server.Addr().(*net.TCPAddr).Port
-	addr = fmt.Sprintf("localhost:%d", port)
+	tcpServ, err := net.ListenTCP("tcp", laddr)
+	if err != nil {
+		plnError("Cant start server", err)
+		return
+	}
+	defer tcpServ.Close()
 
-	go func() {
-		for {
-			c, err := server.Accept()
-			if err != nil {
-				panic(err)
-			}
+	addr := tcpServ.Addr().(*net.TCPAddr)
 
-			go handleConnection(c)
-		}
-	}()
-
+	wg.Add(1)
+	go listen(tcpServ, &wg)
 	fmt.Printf("Listening on: %s\n", addr)
 
-	relayServerAddr := fmt.Sprintf("%s:%d", *relayHost, *relayPort)
-	relayConn := connectToRelay(relayServerAddr)
-	clients := make(map[int]*relayClient)
-
-	for {
-		processMessages(relayConn, *relayHost, clients)
+	rsAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", *relayHost, *relayPort))
+	if err != nil {
+		plnError("Error resolving relayServer address", err)
 	}
+
+	relayConn, err := net.DialTCP("tcp", nil, rsAddr)
+	if err != nil {
+		plnError("Couldn't connect to relayServer", err)
+		return
+	}
+	defer relayConn.Close()
+
+	fmt.Println("Connected to relayServer", relayConn.RemoteAddr().String())
+	clientutils.ProcessMessages(relayConn, *relayHost, addr)
+
+	wg.Wait()
 }
 
-func handleConnection(conn net.Conn) {
-	defer conn.Close()
+func listen(server *net.TCPListener, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	var localWg sync.WaitGroup
+
+	for {
+		c, err := server.Accept()
+		if err != nil {
+			panic(err)
+		}
+
+		tcpConn, ok := c.(*net.TCPConn)
+		if !ok {
+			plnError("Not a TCPConnection. Ignoring")
+			c.Close()
+			continue
+		}
+
+		fmt.Println("Client connected", tcpConn.RemoteAddr().String())
+		localWg.Add(1)
+		go handleConnection(tcpConn, &localWg)
+	}
+
+	localWg.Wait()
+}
+
+func handleConnection(tcpConn *net.TCPConn, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer tcpConn.Close()
 
 	buf := make([]byte, 1024*32)
 	for {
-		nb, err := conn.Read(buf)
+		nb, err := tcpConn.Read(buf)
 		if err != nil {
-			log.Println("ERROR:", err)
+			plnError("Error reading", err)
 			break
 		}
-		_, err = conn.Write(buf[:nb])
+		log.Println("Server Read:", string(buf[:nb]))
+		_, err = tcpConn.Write(buf[:nb])
 		if err != nil {
-			log.Println("ERROR:", err)
+			plnError("Error writing", err)
 			break
 		}
-		log.Printf("Client sent: % X \n", string(buf[:nb]))
+		log.Println("Server Wrote:", string(buf[:nb]))
 	}
 }
 
-func connectToRelay(relayServerAddr string) net.Conn {
-	relayConn, err := net.Dial("tcp", relayServerAddr)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return relayConn
-}
-
-func processMessages(conn net.Conn, relayHost string, clients map[int]*relayClient) {
-	bufReader := bufio.NewReader(conn)
-	msg, err := bufReader.ReadString('\n')
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	msg = strings.TrimSpace(msg)
-
-	switch {
-	case strings.HasPrefix(msg, "[NEW]"):
-		id, port := getIdAndPort(msg)
-		rlAddr := fmt.Sprintf("%s:%d", relayHost, port)
-		client := newClient(rlAddr)
-		clients[id] = client
-		go client.sync()
-	case strings.HasPrefix(msg, "[CLOSE]"):
-		time.Sleep(time.Millisecond)
-		id := getId(msg)
-		clients[id].close()
-	}
-}
-
-
-func newClient(rlAddr string) (*relayClient) {
-	connToRelay, err := net.Dial("tcp", rlAddr)
-	if err != nil {
-		panic(err)
-	}
-
-	connToServer, err := net.Dial("tcp", addr)
-	if err != nil {
-		panic(err)
-	}
-
-	return &relayClient{connToRelay, connToServer}
-}
-
-func (c *relayClient) sync() {
-	go func() {
-		io.Copy(c.server, c.relay)
-	}()
-
-	io.Copy(c.relay, c.server)
-}
-
-func (c *relayClient) close() {
-	c.relay.Close()
-	c.server.Close()
-}
-
-func getId(s string) (id int) {
-	opCode := "[CLOSE]"
-	idx := strings.Index(s, opCode) + len(opCode)
-	fmt.Sscanf(s[idx:], "%d", &id)
-	return
-}
-
-func getIdAndPort(s string) (id, port int) {
-	opCode := "[NEW]"
-	idx := strings.Index(s, opCode) + len(opCode)
-	fmt.Sscanf(s[idx:], "%d:%d", &port, &id)
-	return
+func plnError(s ...interface{}) {
+	fmt.Fprintln(os.Stderr, s...)
 }

@@ -21,7 +21,7 @@ func TestRelayRequestHandler_RunWithClients_Success(t *testing.T) {
 	sAddr := fmt.Sprintf("localhost:%d", rr.GetServerPort())
 
 	// Act
-	go rr.Run()
+	go rr.AcceptClients()
 	connectClient(cAddr, t)
 	connectClient(sAddr, t)
 
