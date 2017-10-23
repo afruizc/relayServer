@@ -7,7 +7,6 @@ import (
 	"sync"
 	"net"
 	"gitlab.com/afruizc/relayServer/clientutils"
-	"os"
 )
 const addr = "localhost:12345"
 

@@ -73,7 +73,6 @@ func parseNewMsg(msg, rlHost string) (*net.TCPAddr) {
 type relayClient struct {
 	relay  *net.TCPConn
 	server *net.TCPConn
-	openClient chan int
 }
 
 func newClient(relayAddr, serverAddr *net.TCPAddr) (*relayClient, error) {
@@ -87,8 +86,7 @@ func newClient(relayAddr, serverAddr *net.TCPAddr) (*relayClient, error) {
 		return nil, err
 	}
 
-	return &relayClient{tcpRelayConn, tcpServerConn,
-		make(chan int, 1)}, nil
+	return &relayClient{tcpRelayConn, tcpServerConn}, nil
 }
 
 func (c *relayClient) sync() {
