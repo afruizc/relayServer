@@ -18,11 +18,10 @@ type ClientServerSynchronizer interface {
 // done writing data. We dubbed them as `pending`
 type ClientServerSyncImpl struct {
 	c  io.Writer // Original connection to the server. Used for notifications
-	id int      // ID of the client
 }
 
-func NewClientServerSynchronizer(serverConn io.Writer, id int) (ClientServerSynchronizer) {
-	return &ClientServerSyncImpl{serverConn, id}
+func NewClientServerSynchronizer(serverConn io.Writer) (ClientServerSynchronizer) {
+	return &ClientServerSyncImpl{serverConn}
 }
 
 func (df *ClientServerSyncImpl) SynchronizeIO(clientConn, serverConn *net.TCPConn) {
@@ -39,16 +38,15 @@ func (df *ClientServerSyncImpl) sync(client, server *net.TCPConn) {
 	go func() {
 		defer wg.Done()
 		_, err := io.Copy(server, client)
-		notifyClosedConnection(df.c, df.id)
 		log.Println("Client disconnected", err)
-		client.Close()
+		server.CloseWrite()
 	}()
 
 	go func() {
 		defer wg.Done()
 		_, err := io.Copy(client, server)
 		log.Println("server disconnected", err)
-		server.Close()
+		client.CloseWrite()
 	}()
 
 	wg.Wait()

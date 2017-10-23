@@ -11,13 +11,12 @@ import (
 )
 
 // Process messages reads from the connection to the relay server and
-// acts based on messages received there. Right now, only 2 types of messages
-// are supported: [NEW] and [CLOSE]. This blocks on Reading from the
-// TCP Connection.
+// acts based on messages received there. Only 1 type of message
+// is supported right now:
+// [NEW] message: "[NEW]<port>" where port number is an int
 func ProcessMessages(tcpConn *net.TCPConn, relayHost string, serverAddr *net.TCPAddr) {
 	var wg sync.WaitGroup
 
-	clients := &sync.Map{}
 	for {
 		bufReader := bufio.NewReader(tcpConn)
 		msg, err := bufReader.ReadString('\n')
@@ -28,31 +27,27 @@ func ProcessMessages(tcpConn *net.TCPConn, relayHost string, serverAddr *net.TCP
 
 		msg = strings.TrimSpace(msg)
 
-		switch {
-		case strings.HasPrefix(msg, "[NEW]"):
-			// Adds to the wg
-			processNew(msg, relayHost, clients, serverAddr, &wg)
-		case strings.HasPrefix(msg, "[CLOSE]"):
-			processClose(msg, clients)
+		if !strings.HasPrefix(msg, "[NEW]") {
+			fmt.Println("[RS] Error. Msg not understood", msg)
+			return
 		}
+		processNew(msg, relayHost, serverAddr, &wg)
 	}
 
 	wg.Wait()
 }
 
 // Creates a new relayClient and starts synchronization between
-// the relayServer and the server. This blocks until the
-// synchronization is done.
-func processNew(msg string, relayHost string, clients *sync.Map,
-		serveraddr *net.TCPAddr, wg *sync.WaitGroup) {
-	id, relayaddr := resolveNewMessage(msg, relayHost)
+// the relayServer and the server.
+func processNew(msg string, relayHost string, serveraddr *net.TCPAddr,
+		wg *sync.WaitGroup) {
+	relayaddr := parseNewMsg(msg, relayHost)
 	client, err := newClient(relayaddr, serveraddr)
 	if err != nil {
 		fmt.Println("[RS] Error creating client. Skipping")
 		return
 	}
-	fmt.Println("[RS] New connection from client", id, client.relay.RemoteAddr())
-	clients.Store(id, client)
+	fmt.Println("[RS] New connection from client", client.relay.RemoteAddr())
 
 	wg.Add(1)
 	go func() {
@@ -61,36 +56,16 @@ func processNew(msg string, relayHost string, clients *sync.Map,
 	}()
 }
 
-func processClose(msg string, clients *sync.Map) {
-	id := getId(msg)
-	clientInt, ok := clients.Load(id)
-	if !ok {
-		fmt.Println("[RS] Can't find client with id", id)
-	}
-
-	client := clientInt.(*relayClient)
-	client.close()
-	clients.Delete(id)
-	fmt.Println("[RS] Client with id", id, "disconnected")
-}
-
-// Parses the message and
-func resolveNewMessage(msg, rlHost string) (int, *net.TCPAddr) {
-	var id, port int
-	fmt.Sscanf(msg, "[NEW]%d:%d", &port, &id)
+// Returns the id and address to connect to from the message
+func parseNewMsg(msg, rlHost string) (*net.TCPAddr) {
+	var port int
+	fmt.Sscanf(msg, "[NEW]%d", &port)
 	raddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", rlHost, port))
 
 	if err != nil {
 		log.Println("[RS] Error parsing tcp address", err)
 	}
-	return id, raddr
-}
-
-func getId(s string) (id int) {
-	opCode := "[CLOSE]"
-	idx := strings.Index(s, opCode) + len(opCode)
-	fmt.Sscanf(s[idx:], "%d", &id)
-	return
+	return raddr
 }
 
 // Relay client has the server and
@@ -98,6 +73,7 @@ func getId(s string) (id int) {
 type relayClient struct {
 	relay  *net.TCPConn
 	server *net.TCPConn
+	openClient chan int
 }
 
 func newClient(relayAddr, serverAddr *net.TCPAddr) (*relayClient, error) {
@@ -111,7 +87,8 @@ func newClient(relayAddr, serverAddr *net.TCPAddr) (*relayClient, error) {
 		return nil, err
 	}
 
-	return &relayClient{tcpRelayConn, tcpServerConn}, nil
+	return &relayClient{tcpRelayConn, tcpServerConn,
+		make(chan int, 1)}, nil
 }
 
 func (c *relayClient) sync() {
@@ -120,52 +97,15 @@ func (c *relayClient) sync() {
 
 	go func() {
 		defer wg.Done()
-		copyStream(c.server, c.relay)
+		io.Copy(c.server, c.relay)
+		c.server.CloseWrite()
 	}()
 
 	go func() {
 		defer wg.Done()
-		copyStream(c.relay, c.server)
+		io.Copy(c.relay, c.server)
+		c.relay.CloseWrite()
 	}()
 
 	wg.Wait()
-}
-
-// Closes the connection making sure
-// everything is flushed first
-func (c *relayClient) close() {
-	//time.Sleep(time.Millisecond)
-	c.server.Close()
-	c.relay.Close()
-}
-
-func copyStream(dst, src *net.TCPConn) (written int64, err error)  {
-	buf := make([]byte, 32 * 1024)
-	for {
-		nr, er := src.Read(buf)
-		if nr > 0 {
-			log.Println("Read Relay:", string(buf[:nr]))
-			nw, ew := dst.Write(buf[0:nr])
-			if nw > 0 {
-				written += int64(nw)
-				log.Println("Wrote Relay:", string(buf[:nw]))
-			}
-			if ew != nil {
-				err = ew
-				break
-			}
-			if nr != nw {
-				err = io.ErrShortWrite
-				break
-			}
-		}
-		if er != nil {
-			if er != io.EOF {
-				err = er
-			}
-			break
-		}
-	}
-	return written, err
-
 }

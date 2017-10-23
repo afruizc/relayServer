@@ -40,9 +40,10 @@ tcp servers.
    written on any one end is also passed to the other.
 
 As mentioned above, when a `client` connects to the `relayServer`, we notify the
-`server` by sending a string. This string contains has the prefix `[NEW]` followed
+`server` by sending a string. This string has the prefix `[NEW]` followed
  by the the port and is ended with the `\n` character. `server`s using
- `relayServer` read this message from the connection stream established when they first connected to the `relayServer`.
+ `relayServer` read this message from the connection stream established when they
+ first connected to the `relayServer`.
 
 ## Connecting your server
 As we don't want our `relayServer` to initiate any connections, but to receive
@@ -61,6 +62,10 @@ Start the `server` as you would normally (it could be a local interface). Connec
 to the `relayServer`. When notified of a new client connection, create 2 tcp
 sockets: One to the `relayServer` on the host/port specified in the message 
 and one to the `server`. Then synchronize these 2 connections.
+
+**Note:** When closing the connection to the relay server, make sure you only close
+it for reading (i.e, send EOF without closing the entire connection). This allows
+all data to be flushed properly and not linger in the connection.
 
 We have come up with 2 examples of a simple echo server and a simple web server
 that use this method:

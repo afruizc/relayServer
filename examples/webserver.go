@@ -15,7 +15,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
 }
 
-func main() {
+func main2() {
 	var wg sync.WaitGroup
 
 	serverAddr, err := net.ResolveTCPAddr("tcp", addr)
@@ -52,6 +52,6 @@ func main() {
 	wg.Wait()
 }
 
-func plnError(s ...interface{}) {
-	fmt.Fprintln(os.Stderr, s...)
-}
+//func plnError(s ...interface{}) {
+//	fmt.Fprintln(os.Stderr, s...)
+//}

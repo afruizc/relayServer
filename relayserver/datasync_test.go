@@ -30,7 +30,7 @@ func TestSynchronizeIO_OneSends_Success(t *testing.T) {
 	defer s[1].Close()
 
 	wr := &MockWriter{}
-	syncIO := NewClientServerSynchronizer(wr, 0)
+	syncIO := NewClientServerSynchronizer(wr)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -74,7 +74,7 @@ func TestSynchronizeIO_SendAndReceive_Success(t *testing.T) {
 	defer s[1].Close()
 
 	wr := &MockWriter{}
-	syncIO := NewClientServerSynchronizer(wr, 0)
+	syncIO := NewClientServerSynchronizer(wr)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
