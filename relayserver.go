@@ -1,9 +1,9 @@
-package relayserver
+package main
 
 import (
-	"net"
 	"fmt"
 	"log"
+	"net"
 	"sync"
 )
 

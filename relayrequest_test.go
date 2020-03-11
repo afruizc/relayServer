@@ -1,10 +1,10 @@
-package relayserver
+package main
 
 import (
-	"testing"
-	"net"
-	"fmt"
 	"bufio"
+	"fmt"
+	"net"
+	"testing"
 	"time"
 )
 
@@ -45,5 +45,3 @@ func connectClient(addr string, t *testing.T) {
 		t.Error(err)
 	}
 }
-
-

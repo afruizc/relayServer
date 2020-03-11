@@ -1,9 +1,9 @@
-package relayserver
+package main
 
 import (
+	"log"
 	"net"
 	"sync"
-	"log"
 )
 
 // When a client connects to the relay server, we send a

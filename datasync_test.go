@@ -1,12 +1,12 @@
-package relayserver
+package main
 
 import (
-	"testing"
-	"net"
+	"bytes"
 	"io"
+	"net"
 	"strings"
 	"sync"
-	"bytes"
+	"testing"
 	"time"
 )
 
@@ -59,7 +59,6 @@ func TestSynchronizeIO_OneSends_Success(t *testing.T) {
 
 	assertClientDisconnectedNotification(wr, 1, t)
 }
-
 
 func TestSynchronizeIO_SendAndReceive_Success(t *testing.T) {
 
@@ -136,10 +135,9 @@ func assertConnReceived(conn net.Conn, expected string, t *testing.T) {
 
 func genString(length int) string {
 	var buf bytes.Buffer
-	for i := 0 ; i < length ; i++ {
+	for i := 0; i < length; i++ {
 		buf.WriteByte('a')
 	}
 
 	return buf.String()
 }
-

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"net"
 	"flag"
 	"fmt"
+	"gitlab.com/kazlu/relayServer/clientutils"
 	"log"
+	"net"
 	"os"
 	"sync"
-	"gitlab.com/afruizc/relayServer/clientutils"
 )
 
 func main() {

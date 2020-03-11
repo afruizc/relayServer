@@ -1,4 +1,4 @@
-package relayserver
+package main
 
 import (
 	"fmt"

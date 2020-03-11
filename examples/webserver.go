@@ -1,13 +1,14 @@
 package main
 
 import (
-	"net/http"
 	"flag"
 	"fmt"
-	"sync"
+	"gitlab.com/kazlu/relayServer/clientutils"
 	"net"
-	"gitlab.com/afruizc/relayServer/clientutils"
+	"net/http"
+	"sync"
 )
+
 const addr = "localhost:12345"
 
 func handler(w http.ResponseWriter, r *http.Request) {

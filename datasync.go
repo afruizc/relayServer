@@ -1,9 +1,9 @@
-package relayserver
+package main
 
 import (
-	"net"
 	"io"
 	"log"
+	"net"
 	"sync"
 )
 
@@ -17,10 +17,10 @@ type ClientServerSynchronizer interface {
 // a connection has read and is currently not
 // done writing data. We dubbed them as `pending`
 type ClientServerSyncImpl struct {
-	c  io.Writer // Original connection to the server. Used for notifications
+	c io.Writer // Original connection to the server. Used for notifications
 }
 
-func NewClientServerSynchronizer(serverConn io.Writer) (ClientServerSynchronizer) {
+func NewClientServerSynchronizer(serverConn io.Writer) ClientServerSynchronizer {
 	return &ClientServerSyncImpl{serverConn}
 }
 

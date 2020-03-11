@@ -1,9 +1,9 @@
-package relayserver
+package main
 
 import (
-	"net"
-	"fmt"
 	"bytes"
+	"fmt"
+	"net"
 )
 
 // Starts a server and connects clientNo clients to the

@@ -1,13 +1,13 @@
 package clientutils
 
 import (
-	"net"
 	"bufio"
 	"fmt"
-	"strings"
 	"io"
-	"sync"
 	"log"
+	"net"
+	"strings"
+	"sync"
 )
 
 // Process messages reads from the connection to the relay server and
@@ -40,7 +40,7 @@ func ProcessMessages(tcpConn *net.TCPConn, relayHost string, serverAddr *net.TCP
 // Creates a new relayClient and starts synchronization between
 // the relayServer and the server.
 func processNew(msg string, relayHost string, serveraddr *net.TCPAddr,
-		wg *sync.WaitGroup) {
+	wg *sync.WaitGroup) {
 	relayaddr := parseNewMsg(msg, relayHost)
 	client, err := newClient(relayaddr, serveraddr)
 	if err != nil {
@@ -57,7 +57,7 @@ func processNew(msg string, relayHost string, serveraddr *net.TCPAddr,
 }
 
 // Returns the id and address to connect to from the message
-func parseNewMsg(msg, rlHost string) (*net.TCPAddr) {
+func parseNewMsg(msg, rlHost string) *net.TCPAddr {
 	var port int
 	fmt.Sscanf(msg, "[NEW]%d", &port)
 	raddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", rlHost, port))
